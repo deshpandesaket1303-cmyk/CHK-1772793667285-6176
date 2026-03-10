@@ -1,275 +1,198 @@
 <!DOCTYPE html>
-<html lang="en">
-
+<html>
 <head>
-<meta charset="UTF-8">
 <title>Edu_AI Dashboard</title>
-
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
 <style>
-
-body{
-font-family: Arial;
-background:#f4f6f9;
-margin:0;
-}
-
-.header{
-background:#2c3e50;
-color:white;
-padding:20px;
-text-align:center;
-font-size:28px;
-}
-
-.container{
-width:90%;
-max-width:1100px;
-margin:auto;
-margin-top:30px;
-display:grid;
-grid-template-columns:1fr 1fr;
-gap:20px;
-}
-
-.card{
-background:white;
-padding:20px;
-border-radius:10px;
-box-shadow:0 3px 10px rgba(0,0,0,0.1);
-}
-
-input{
-width:100%;
-padding:10px;
-margin-top:8px;
-margin-bottom:12px;
-border:1px solid #ccc;
-border-radius:5px;
-}
-
-button{
-background:#3498db;
-color:white;
-border:none;
-padding:12px;
-width:100%;
-border-radius:5px;
-cursor:pointer;
-}
-
-.result{
-font-size:18px;
-margin:8px 0;
-}
-
-canvas{
-margin-top:20px;
-}
-
+body{font-family:Arial;background:#f4f6f9;margin:0;}
+.header{background:#2c3e50;color:white;padding:20px;text-align:center;font-size:28px;}
+.container{width:90%;max-width:1200px;margin:auto;margin-top:30px;}
+.card{background:white;padding:20px;border-radius:10px;box-shadow:0 3px 10px rgba(0,0,0,0.1);margin-bottom:20px;}
+input, select{width:100%;padding:8px;margin-top:5px;margin-bottom:10px;}
+button{background:#3498db;color:white;border:none;padding:10px;cursor:pointer;margin-top:5px;}
+table{width:100%;border-collapse:collapse;margin-top:10px;}
+th,td{padding:8px;text-align:center;border:1px solid #ddd;}
+th{background:#3498db;color:white;}
+.excellent{background:#a8e6a1;} .good{background:#f7f48b;} .average{background:#f4c095;} .poor{background:#f08080;}
+.risk{color:red;font-weight:bold;}
 </style>
-
 </head>
-
-
 <body>
 
-<div class="header">
-Edu_AI – AI Student Performance Dashboard
-</div>
-
+<div class="header">Edu_AI – Student Performance Dashboard</div>
 <div class="container">
 
-<!-- Input Section -->
-
+<!-- Individual Student Analysis -->
 <div class="card">
-
-<h2>Student Input</h2>
-
-<label>Attendance (%)</label>
-<input type="number" id="attendance">
-
-<label>Assignment Score</label>
-<input type="number" id="assignment">
-
-<label>Quiz Score</label>
-<input type="number" id="quiz">
-
-<label>Study Hours</label>
-<input type="number" id="study_hours">
-
+<h2>Individual Student Analysis (Simulation)</h2>
+<label>Attendance: <span id="attendanceVal">0</span></label>
+<input type="range" min="0" max="100" id="attendance" value="80" oninput="updateVal('attendance')">
+<label>Assignment: <span id="assignmentVal">0</span></label>
+<input type="range" min="0" max="100" id="assignment" value="80" oninput="updateVal('assignment')">
+<label>Quiz: <span id="quizVal">0</span></label>
+<input type="range" min="0" max="100" id="quiz" value="80" oninput="updateVal('quiz')">
+<label>Study Hours: <span id="studyVal">0</span></label>
+<input type="range" min="0" max="10" id="study_hours" value="3" oninput="updateVal('study')">
 <button onclick="predict()">Analyze Student</button>
-
+<h3>Result</h3>
+<p>Predicted Score: <span id="score"></span></p>
+<p>Performance Level: <span id="performance"></span></p>
+<p>Weak Area: <span id="weak"></span></p>
+<p>Risk Level: <span id="risk"></span></p>
+<p>Suggestion: <span id="suggestion"></span></p>
+<canvas id="individualChart"></canvas>
 </div>
 
-
-
-<!-- Result Section -->
-
+<!-- Dataset Upload -->
 <div class="card">
-
-<h2>AI Analysis Result</h2>
-
-<div class="result">
-Predicted Score: <span id="score">--</span>
+<h2>Upload Student Dataset</h2>
+<input type="file" id="file">
+<button onclick="uploadDataset()">Analyze Dataset</button>
+<br>
+<label>Filter by Performance:</label>
+<select id="perfFilter" onchange="applyFilters()">
+<option value="All">All</option><option>Excellent</option><option>Good</option><option>Average</option><option>Poor</option>
+</select>
+<label>Filter by Risk:</label>
+<select id="riskFilter" onchange="applyFilters()">
+<option value="All">All</option><option>Low</option><option>Medium</option><option>High</option>
+</select>
+<button onclick="exportExcel()">Download Excel</button>
+<button onclick="exportPDF()">Download PDF</button>
 </div>
 
-<div class="result">
-Performance Level: <span id="performance">--</span>
-</div>
-
-<div class="result">
-Weak Area: <span id="weak">--</span>
-</div>
-
-<div class="result">
-Risk Level: <span id="risk">--</span>
-</div>
-
-<div class="result">
-Suggestion: <span id="suggestion">--</span>
-</div>
-
-</div>
-
-</div>
-
-
-<!-- Charts -->
-
-<div style="width:90%;margin:auto;margin-top:30px">
-
+<!-- Leaderboard -->
 <div class="card">
-<h2>Performance Comparison</h2>
+<h3>Student Leaderboard</h3>
+<table id="leaderboard">
+<tr><th>Rank</th><th>StudentID</th><th>Score</th><th>Performance</th><th>Risk</th></tr>
+</table>
+</div>
+
+<!-- Performance Distribution -->
+<div class="card">
+<h3>Performance Distribution</h3>
 <canvas id="performanceChart"></canvas>
 </div>
 
+<!-- Individual Student Analysis Cards -->
 <div class="card">
-<h2>Predicted Score Analysis</h2>
-<canvas id="scoreChart"></canvas>
+<h3>Individual Student Analysis (Dataset)</h3>
+<div id="allStudents"></div>
 </div>
 
 </div>
-
-
 
 <script>
+let individualChart, performanceChart, allStudentsData=[];
 
-let performanceChart;
-let scoreChart;
+function updateVal(type){
+if(type=="attendance") document.getElementById("attendanceVal").innerText=document.getElementById("attendance").value;
+else if(type=="assignment") document.getElementById("assignmentVal").innerText=document.getElementById("assignment").value;
+else if(type=="quiz") document.getElementById("quizVal").innerText=document.getElementById("quiz").value;
+else if(type=="study") document.getElementById("studyVal").innerText=document.getElementById("study_hours").value;
+predict();
+}
 
 function predict(){
-
-let attendance=document.getElementById("attendance").value;
-let assignment=document.getElementById("assignment").value;
-let quiz=document.getElementById("quiz").value;
-let study_hours=document.getElementById("study_hours").value;
-
-
-fetch("http://127.0.0.1:5000/predict",{
-
-method:"POST",
-
-headers:{
-"Content-Type":"application/json"
-},
-
-body:JSON.stringify({
-
-attendance:attendance,
-assignment:assignment,
-quiz:quiz,
-study_hours:study_hours
-
-})
-
-})
-
-.then(response=>response.json())
-
+let attendance=document.getElementById("attendance").value
+let assignment=document.getElementById("assignment").value
+let quiz=document.getElementById("quiz").value
+let study_hours=document.getElementById("study_hours").value
+fetch("http://127.0.0.1:5000/predict",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({attendance,assignment,quiz,study_hours})})
+.then(res=>res.json())
 .then(data=>{
-
-document.getElementById("score").innerText=data.predicted_score;
-document.getElementById("performance").innerText=data.performance_level;
-document.getElementById("weak").innerText=data.weak_area;
-document.getElementById("risk").innerText=data.risk_level;
-document.getElementById("suggestion").innerText=data.suggestion;
-
-
-createPerformanceChart(attendance,assignment,quiz);
-createScoreChart(data.predicted_score);
-
+document.getElementById("score").innerText=data.predicted_score
+document.getElementById("performance").innerText=data.performance_level
+document.getElementById("weak").innerText=data.weak_area
+document.getElementById("risk").innerText=data.risk_level
+document.getElementById("suggestion").innerText=data.suggestion
+createIndividualChart(attendance,assignment,quiz)
 })
-
 }
 
-
-
-function createPerformanceChart(attendance,assignment,quiz){
-
-let ctx=document.getElementById("performanceChart");
-
-if(performanceChart){
-performanceChart.destroy();
+function createIndividualChart(attendance,assignment,quiz){
+let ctx=document.getElementById("individualChart")
+if(individualChart) individualChart.destroy()
+individualChart=new Chart(ctx,{type:"bar",data:{labels:["Attendance","Assignment","Quiz"],datasets:[{label:"Student Performance",data:[attendance,assignment,quiz],backgroundColor:["#3498db","#2ecc71","#f1c40f"]}]}})
 }
 
-performanceChart=new Chart(ctx,{
-
-type:"bar",
-
-data:{
-labels:["Attendance","Assignment","Quiz"],
-
-datasets:[{
-
-label:"Student Performance",
-
-data:[attendance,assignment,quiz],
-
-backgroundColor:["#3498db","#2ecc71","#e74c3c"]
-
-}]
-}
-
+function uploadDataset(){
+let file=document.getElementById("file").files[0]
+let formData=new FormData()
+formData.append("file",file)
+fetch("http://127.0.0.1:5000/analyze",{method:"POST",body:formData})
+.then(res=>res.json())
+.then(data=>{
+allStudentsData=data.all_students
+applyFilters()
+createDatasetChart(data)
 })
-
 }
 
-
-
-function createScoreChart(score){
-
-let ctx=document.getElementById("scoreChart");
-
-if(scoreChart){
-scoreChart.destroy();
+function applyFilters(){
+let perfFilter=document.getElementById("perfFilter").value
+let riskFilter=document.getElementById("riskFilter").value
+let filtered=allStudentsData.filter(s=>(perfFilter=="All"||s.Performance==perfFilter)&&(riskFilter=="All"||s.RiskLevel==riskFilter))
+createLeaderboard(filtered)
+createStudentCards(filtered)
 }
 
-scoreChart=new Chart(ctx,{
-
-type:"doughnut",
-
-data:{
-
-labels:["Predicted Score","Remaining"],
-
-datasets:[{
-
-data:[score,100-score],
-
-backgroundColor:["#27ae60","#ecf0f1"]
-
-}]
-
-}
-
+function createLeaderboard(students){
+let table=document.getElementById("leaderboard")
+table.innerHTML="<tr><th>Rank</th><th>StudentID</th><th>Score</th><th>Performance</th><th>Risk</th></tr>"
+students.sort((a,b)=>b.PredictedScore-a.PredictedScore)
+students.forEach((s,i)=>{
+let cls=s.Performance.toLowerCase()
+table.innerHTML+=`<tr class="${cls}"><td>${i+1}</td><td>${s.StudentID}</td><td>${s.PredictedScore.toFixed(2)}</td><td>${s.Performance}</td><td>${s.RiskLevel}</td></tr>`
 })
-
 }
 
+function createDatasetChart(data){
+let ctx=document.getElementById("performanceChart")
+if(performanceChart) performanceChart.destroy()
+let top=data.top_students.length
+let avg=data.average_students.length
+let poor=data.poor_students.length
+performanceChart=new Chart(ctx,{type:"pie",data:{labels:["Top","Average","Poor"],datasets:[{data:[top,avg,poor],backgroundColor:["#2ecc71","#f1c40f","#f08080"]}]}})
+}
+
+function createStudentCards(students){
+let container=document.getElementById("allStudents")
+container.innerHTML=""
+students.forEach(s=>{
+container.innerHTML+=`<div class="card"><h4>Student ${s.StudentID}</h4><p>Score: ${s.PredictedScore.toFixed(2)}</p><p>Performance: ${s.Performance}</p><p>Weak Area: ${s.WeakArea}</p><p>Risk Level: <span class="risk">${s.RiskLevel}</span></p><canvas id="chart${s.StudentID}"></canvas></div>`
+let ctx=document.getElementById(`chart${s.StudentID}`)
+new Chart(ctx,{type:"bar",data:{labels:["Attendance","Assignment","Quiz"],datasets:[{label:"Performance",data:[s.Attendance,s.Assignment,s.Quiz],backgroundColor:["#3498db","#2ecc71","#f1c40f"]}]}})
+})
+}
+
+// ------------------ Export Excel ------------------
+function exportExcel(){
+let ws=XLSX.utils.json_to_sheet(allStudentsData)
+let wb=XLSX.utils.book_new()
+XLSX.utils.book_append_sheet(wb,ws,"Students")
+XLSX.writeFile(wb,"EduAI_StudentAnalysis.xlsx")
+}
+
+// ------------------ Export PDF ------------------
+function exportPDF(){
+const { jsPDF } = window.jspdf;
+let doc=new jsPDF()
+doc.setFontSize(16)
+doc.text("Edu_AI Student Performance Analysis",20,20)
+let y=30
+allStudentsData.forEach(s=>{
+doc.setFontSize(12)
+doc.text(`Student ${s.StudentID} | Score: ${s.PredictedScore.toFixed(2)} | Performance: ${s.Performance} | Weak: ${s.WeakArea} | Risk: ${s.RiskLevel}`,20,y)
+y+=10
+if(y>280){doc.addPage();y=20}
+})
+doc.save("EduAI_StudentAnalysis.pdf")
+}
 </script>
 
 </body>
-
 </html>
